@@ -1,89 +1,42 @@
 # Edgarsearch
+> Crawl EDGAR database to download index files and filings.
 
-Crawl EDGAR database to download index files and filings.
-Let's you crawl throught the edgar archives to download indexes and filings based on criteria (time period, CIK and form type).
-Downloads the corresponding filings and stores them using your desired file name pattern.
-Moreover, extracts the filings to obtain the original files(html, jpg, pdf).
+Use this crawler to download index files and filings from the SEC EGDAR Database based on multiple criteria (time period, form type and CIK). The crawler is capable of restoring the original files (html, jpg, pdf, ...) from the filing and saving these using your preferred file name pattern.
 
-## Getting Started
+## Getting started
+### Install
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+Simply install egdarsearch using pip:
 
-### Prerequisites
-
-What things you need to install the software and how to install them
-
-```
-Give examples
+```shell
+pip install edgarsearch
 ```
 
-### Installing
+This code will install the edgarsearch package and its dependencies (Pandas).
 
-A step by step series of examples that tell you have to get a development env runni
-Say what the step will be
 
-```
-Give the example
-```
+### Import
 
-And repeat
+Import the package using
 
-```
-until finished
+```shell
+import edgarsearch
 ```
 
-End with an example of getting some data out of the system or using it for a little demo
+## Features
 
-## Running the tests
-
-Explain how to run the automated tests for this system
-
-### Break down into end to end tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
-
-### And coding style tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
-
-## Deployment
-
-Add additional notes about how to deploy this on a live system
-
-## Built With
-
-* [Dropwizard](http://www.dropwizard.io/1.0.2/docs/) - The web framework used
-* [Maven](https://maven.apache.org/) - Dependency Management
-* [ROME](https://rometools.github.io/rome/) - Used to generate RSS Feeds
+This project makes it easy to:
+* Search the EDGAR database
+* Download index files based on your searches
+* Download filings based in your searches using multithreading to speed up the process
+* Keep the filings either in raw format as obtained from the server or as orgininal documents (html, jpg, pdf)
+* Use your own pattern for file names to suit your need
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
+If you'd like to contribute, please fork the repository and make changes as
+you'd like. Pull requests are warmly welcome.
 
-## Versioning
+## Licensing
 
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags). 
-
-## Authors
-
-* **Billie Thompson** - *Initial work* - [PurpleBooth](https://github.com/PurpleBooth)
-
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
-
-## Acknowledgments
-
-* Hat tip to anyone who's code was used
-* Inspiration
-* etc
+This project is licensed under the MIT License
