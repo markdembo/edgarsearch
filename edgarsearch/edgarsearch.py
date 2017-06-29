@@ -12,8 +12,8 @@ my_edgar.cur_filings
 
 """
 import datetime
-import indexhandler as ih
-import filingshandler as fh
+from edgarsearch import indexhandler as ih
+from edgarsearch import filingshandler as fh
 
 
 class edgar:

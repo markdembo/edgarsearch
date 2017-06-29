@@ -7,8 +7,8 @@ into multiple files.
 
 import pandas as pd
 import multiprocessing as mp
-import filingshandler_worker as fhw
-import tools as t
+from edgarsearch import filingshandler_worker as fhw
+from edgarsearch import tools as t
 import re
 import uu
 import os

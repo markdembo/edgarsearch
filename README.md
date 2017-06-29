@@ -30,7 +30,7 @@ This code will install the edgarsearch package and its dependencies (Pandas).
 Import the package using
 
 ```shell
-import edgarsearch
+from edgarsearch import edgarsearch
 ```
 
 ### Use
@@ -39,6 +39,7 @@ Defining a search, downloading index files and filings, and extracting original 
 Example:
 
 ```shell
+from edgarsearch import edgarsearch
 if __name__ == '__main__':
     # Setup the basical variables for the following commands (with defaults)
     my_edgar = edgarsearch.edgar()

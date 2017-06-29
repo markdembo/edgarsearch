@@ -20,16 +20,16 @@ def readme():
         return f.read()
 
 
-setup(name='edgarserach',
+setup(name='edgarsearch',
       version='0.1',
       description='Crawl EDGAR database to download index files and filings.',
       long_description=readme(),
       keywords='EDGAR index filings 8-K 10-K',
-      url='http://github.com/storborg/funniest',
+      url='https://github.com/markdembo/edgarsearch',
       author='Mark Dembo',
       author_email='mark.dembo@student.unisg.ch',
       license='MIT',
-      packages=['funniest'],
+      packages=['edgarsearch'],
       install_requires=[
           'pandas',
       ],

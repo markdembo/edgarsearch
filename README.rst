@@ -44,7 +44,7 @@ Import the package using
 
 .. code:: shell
 
-    import edgarsearch
+    from edgarsearch import edgarsearch
 
 Use
 ~~~
@@ -54,7 +54,7 @@ Use
 | Example:
 
 .. code:: shell
-
+    from edgarsearch import edgarsearch
     if __name__ == '__main__':
         # Setup the basical variables for the following commands (with defaults)
         my_edgar = edgarsearch.edgar()
