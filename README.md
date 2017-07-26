@@ -39,14 +39,14 @@ Defining a search, downloading index files and filings, and extracting original 
 Example:
 
 ```shell
-import edgarsearch.edgarsearch
+from edgarsearch import edgarsearch
 if __name__ == '__main__':
     # Define a search by passing the start and end of the sample period, the sample size
     # as well as the desired formtype (and using defaults for the other values)
-    search = edgarsearch.edgarsearch.search("20151001",
-                                            "20161231",
-                                            sample_size=200,
-                                            filter_formtype=["8-K"])
+    search = edgarsearch.Search("20151001",
+                                "20161231",
+                                sample_size=200,
+                                filter_formtype=["8-K"])
 
 
     # Get the index file based on the defined search
