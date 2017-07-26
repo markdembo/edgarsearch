@@ -10,7 +10,7 @@ This project makes it easy to:
 * Search the EDGAR database
 * Download index files based on your searches
 * Download filings based in your searches using multithreading to speed up the process
-* Keep the filings either in raw format as obtained from the server or as orgininal documents (html, jpg, pdf)
+* Keep the filings either in raw format as obtained from the server or as orgininal documents (html, jpg)
 * Use your own pattern for file names to suit your need
 
 ## Getting started
@@ -35,28 +35,26 @@ from edgarsearch import edgarsearch
 
 ### Use
 
-Defining a search, downloading index files and filings, and extracting original files requires only 4 commands.
+Defining a search, downloading index files and filings, and extracting original files requires only 3 commands.
 Example:
 
 ```shell
-from edgarsearch import edgarsearch
+import edgarsearch.edgarsearch
 if __name__ == '__main__':
-    # Setup the basical variables for the following commands (with defaults)
-    my_edgar = edgarsearch.edgar()
-    # Define a search by passing the start and end of the sample period,
-    # as well as the desired formtype
+    # Define a search by passing the start and end of the sample period, the sample size
+    # as well as the desired formtype (and using defaults for the other values)
+    search = edgarsearch.edgarsearch.search("20151001",
+                                            "20161231",
+                                            sample_size=200,
+                                            filter_formtype=["8-K"])
 
-    my_edgar.definesearch("20150101", "20150731", filter_formtype=["8-K"])
+
     # Get the index file based on the defined search
-    my_index = my_edgar.getindex()
+    search.downloadindex()
 
-    # Get a sample of 10 filings (including all media data) from the defined
-    # search and store these using the desired file name pattern
-    my_edgar.getfilings(text_only=False, sample_size=100,
-                        fname_form="%Y/%m/%Y%m_%company")
-
-    # Display the pandas df containg all the downloaded filings documents
-    my_filings = my_edgar.cur_filings
+    # Download the filings
+    search.safe_download("months", 1, text_only=True,
+                         chunk_size=100)
 ```
 ## Contributing
 
