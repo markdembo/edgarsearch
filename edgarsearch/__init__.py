@@ -1,2 +1,1 @@
-from edgarsearch import (edgarsearch, filingshandler, filingshandler_worker,
-                         indexhandler, tools)
+#from .edgarsearch import search

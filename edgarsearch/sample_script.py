@@ -6,11 +6,11 @@ For function defintion and possible parameters check out definition in
 the edgarsearch.py file.
 
 """
-import edgarsearch
+import edgarsearch.edgarsearch
 
 if __name__ == '__main__':
     # Setup the basical variables for the following commands (with defaults)
-    my_edgar = edgarsearch.edgar()
+    my_edgar = edgarsearch.edgarsearch.edgar()
     # Define a search by passing the start and end of the sample period,
     # as well as the desired formtype
 
@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
     # Get a sample of 10 filings (including all media data) from the defined
     # search and store these using the desired file name pattern
-    my_edgar.getfilings(text_only=False, sample_size=100,
+    my_edgar.getfilings(text_only=False, sample_size=10,
                         fname_form="%Y/%m/%Y%m_%company")
 
     # Display the pandas df containg all the downloaded filings documents

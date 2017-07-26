@@ -1,65 +1,63 @@
 """Crawl EDGAR database to download index files and filings.
 
-Contains the edgar class.
+Example:
+    import edgarsearch.edgarsearch
+    search = edgarsearch.edgarsearch.search("20151001",
+                                            "20161231",
+                                            sample_size=200,
+                                            filter_formtype=["8-K"])
+    search.downloadindex()
+    search.safe_download("months", 1, text_only=True,
+                         fname_form="%Y/%m/%Y%m_%company",
+                         chunk_size=100)
 
-Sample script:
-my_edgar = edgar()
-my_edgar.definesearch("20150101", "20151231", filter_formtype=["8-K"])
-my_edgar.getindex()
-my_edgar.getfilings(text_only=False, sample_size=10,
-                    fname_form="%Y/%m/%Y%m_%company")
-my_edgar.cur_filings
+Todo:
+    *  Add proper exception handling
+    *  Add rollback functions if an error occurs
+    *  Add testing
 
 """
 import datetime
-from edgarsearch import indexhandler as ih
-from edgarsearch import filingshandler as fh
+import edgarsearch.indexhandler as ih
+import edgarsearch.filingsbatch as fb
+import pandas as pd
+from tqdm import tqdm
 
 
-class edgar:
-    """Class for EDGAR searches.
+class Search(object):
+    """Search of the EDGAR database.
 
-    Contains public functions to download and search index files and also
+    Attributes:
+        sample_start (str):  Start date for filings in sample.
+            The valid format is "YYYYMMDD".
+        sample_end (str): End date for filings in sample.
+            The valid format is "YYYYMMDD".
+        sample_size: (int): Number of samples in scope. If -1, no limit is set.
+            Default to -1.
+        filter_formtype (list of str, optional): Filter based on filings type.
+            Example:["8-K, 10-K"]. Defaults to None.
+        filter_CIK (list of str, optional):Filter based on CIK.
+            Example: ["12345678", "98765432"]. Defaults to None.
+        dir_work (str): Working subdirectory for all saved data.
+            Defaults to "edgar/".
+        sub_index (str): Subdirectory in dir_work for saved index data.
+            Defaults to "index/".
+        sub_filings (str): Subdirectory in dir_work for saved filings data.
+            Defaults to "filings".
+        edgar_url (str): URL to EDGAR server
+            Defaults to  "https://www.sec.gov/Archives/".
 
     """
 
-    def __init__(self,
-                 dir_work="edgar/",
-                 sub_index="index/",
-                 sub_filings="filings/",
+    def __init__(self, sample_start, sample_end, sample_size=-1, *,
+                 filter_formtype=None, filter_CIK=None, dir_work="edgar/",
+                 sub_index="index/", sub_filings="filings/",
                  edgar_url="https://www.sec.gov/Archives/"):
-        """Create new EDGAR search object.
-
-        Args:
-        dir_work:           Working subdirectory for all saved data
-                            (default: "edgar/")
-        sub_index:          Subdirectory in dir_work for saved index data
-                            (default: "index/")
-        sub_filings:        Subdirectory in dir_work for saved filings data
-                            (default: "filings")
-        edgar_url:          URL to EDGAR server
-                            (default: "https://www.sec.gov/Archives/")
-        """
+        """Create new EDGAR search object."""
         self.dir_work = dir_work
         self.sub_index = sub_index
         self.sub_filings = sub_filings
         self.edgar_url = edgar_url
-
-    def definesearch(self, sample_start, sample_end, *,
-                     filter_formtype=None, filter_CIK=None):
-        """Set parameters for new search request.
-
-        Args:
-        sample_start        Start date for filings in sample
-                            String in the format "YYYYMMDD"
-        sample_end          End date for filings in sample
-                            String in the format "YYYYMMDD"
-        filter_formtype     Optional argument to filter based on filings type
-                            List with strings e.g. ["8-K, 10-K"]
-        filter_CIK          Optional argument to filter based on CIK
-                            List with strings e.g. ["12345678", "98765432"]
-
-        """
         try:
             sample_start = datetime.datetime.strptime(sample_start, "%Y%m%d")
             sample_end = datetime.datetime.strptime(sample_end, "%Y%m%d")
@@ -72,81 +70,252 @@ class edgar:
         self.sample_end = sample_end
         self.filter_formtype = filter_formtype
         self.filter_CIK = filter_CIK
+        self.sample_size = sample_size
 
-    def getindex(self):
-        """Download and store the relevant index.
-
-        Args:
-        None
-
-        Return:
-        Pandas Dataframe with the corresponding index
-        """
-        try:
-            self.cur_index = ih.filter(self.fullindex,
-                                       self.sample_start,
-                                       self.sample_end,
-                                       filter_formtype=self.filter_formtype,
-                                       filter_CIK=self.filter_CIK)
-        except:
-            ih.download(self.sample_start, self.sample_end,
-                        self.dir_work, self.sub_index)
-            self.fullindex = ih.consolidate(self.dir_work, self.sub_index)
-            self.cur_index = ih.filter(self.fullindex,
-                                       self.sample_start,
-                                       self.sample_end,
-                                       filter_formtype=self.filter_formtype,
-                                       filter_CIK=self.filter_CIK)
-        return self.cur_index
-
-    def getfilings(self, sample_size=-1, **kwargs):
-        """Download the filings matching the search criteria.
+    def downloadindex(self):
+        """Download the index of the corresponding search.
 
         Args:
-        sample_size Number of samples to obtain from the selected search.
-                    -1 equals the full sample.
-                    (default =-1)
-        fname_form  String with the filename format.
-                    Possible variables:
-                    %org - orignal file name on server
-                    %company - Company Name
-                    All date variables based on strftime.
-                    See: http://strftime.org/
-                    (default: "%Y%m%d_%company_")
-        text_only   If True, only html and txt files are saved. All other types
-                    of contents such as images and PDFs are discarded
-        raw         Bool to define wheter the raw filings shall be kept
-                    or the documents shall be extracted
-                    (default=False)
-        chunk_size  Integer for the size of each chunk to process. The greater
-                    the chunks, the larger the temporary file cache.
-                    (default=100)
+            None
 
-        Return:
-        Pandas DF with the file list
+        Returns:
+            None
+
+        Raises:
+            None
+
         """
-        try:
-            if sample_size > 0:
-                url_list = (
-                            self.cur_index["File Name"]
-                            .sample(sample_size)
-                            .tolist()
-                            )
-            else:
-                url_list = self.cur_index["File Name"].tolist()
-        except:
-            try:
-                self.cur_index.shape[0] = 0
-                print("Current query yields no result.")
-            except:
-                print("Search not defined or index not yet obtained.")
+        e_index = ih.EdgarIndex(self.sample_start, self.sample_end,
+                                self.dir_work, self.sub_index,
+                                self.edgar_url)
+        e_index.download()
+        e_index.consolidate()
+        self.full_index = e_index.cons_index
+        e_index.filter(self.sample_start, self.sample_end,
+                       self.filter_formtype,
+                       self.filter_CIK)
+        filt_index = e_index.filtered_index
 
-        tmp_files, *documents = fh.batch_process(url_list,
-                                                 self.cur_index,
-                                                 folder=self.dir_work,
-                                                 sub=self.sub_filings,
-                                                 edgar_url=self.edgar_url,
-                                                 **kwargs)
-        self.tmp_files = tmp_files
-        self.cur_filings = documents
-        return self.cur_filings
+        if self.sample_size > 0:
+            self.cur_index = filt_index.sample(self.sample_size)
+        else:
+            self.cur_index = filt_index
+
+    def downloadfilings(self, index=None, raw=False, text_only=True,
+                        chunk_size=100, **kwargs):
+        """Process download requests in chunks.
+
+        The method will execute the following steps:
+            1. Split urls into chunks
+            For each chunk:
+            2. Download the filings from the server and store the .txt files
+               temporaryly
+            If raw = False:
+            3. Extract the containing files from the .txt files
+            4. Fix broken image paths in documents
+            5. Delete temporary .txt files
+            6. Store information about stored documents
+
+        Args:
+            urls (list of str): URLs of EDGAR filings to process.
+            index (pandas dataframe): Index dataframe to be downloaded.
+                If none, self.cur_index will be used. Defaults to None.
+            raw (bool): If true, the original .txt files from the EDGAR server
+                will be stored. If false, the containing documents will be
+                extracted and stored. Defaults to False.
+            chunk_size (int): Number of filings to process in only iteration.
+                The bigger the chunk, the bigger the temporary file cache.
+                Defaults to 100.
+        Keyword Args:
+            text_only (bool): If True, only html and txt files are saved.
+                All other (media) files are discarded. Defaults to True.
+            fname_form (str): String with the filename format.
+                Possible parameters:
+                * %org - orignal filename on server
+                * %company - Company Name
+                * All date variables based on strftime.
+                  See: http://strftime.org/
+                Defaults to "%Y%m%d_%company_".
+
+        Returns:
+            None
+
+        Raises:
+            None
+
+        """
+        if index is None:
+            df = self.cur_index
+        else:
+            df = index
+        length = df.shape[0]
+        # If text_only is false, media files are saved, which might require a
+        # lotof disk space. Therefore, user is asked for confirmation
+        if text_only is False:
+            space_req = length / 1000
+            string = ("Saving non-text files may take a lot of space."
+                      "The estimated required space is %0.1f GB."
+                      " Do you want to continue? [Y]es or [N]o? " % space_req)
+            while True:
+                check = input(string).lower()
+                if ((check == "y") | (check == "yes") |
+                   (check == "no") | (check == "n")):
+                    break
+            if (check == "no") | (check == "n"):
+                return None, None
+
+        # Check if chunk_size is reasonable and adjust if not
+        if chunk_size > length:
+            chunk_size = length
+
+        # Create chunks and prepare empty output DataFrames
+        c_list = [df.iloc[i:i + chunk_size, :]
+                  for i in range(0, length, chunk_size)]
+        final_tmp_f = pd.DataFrame()
+        final_docs = pd.DataFrame()
+
+        # Print information to user
+        print("Total filings to download: %s" % length)
+        print("Number of batches: %s (containg %s filings each)"
+              % (len(c_list), chunk_size))
+        print("Progress:")
+
+        # Iterate over chunks, while showing a progess bar
+        for index_chunk in tqdm(c_list):
+
+            # Download the files from the server
+            batch = fb.Batch(index_chunk, dir_work=self.dir_work,
+                             sub_filings=self.sub_filings,
+                             edgar_url=self.edgar_url)
+            batch.download()
+
+            # If raw is False, process the downloaded filins
+            if raw is False:
+                batch.splitfiles(**kwargs)
+                documents = batch.docs
+                batch.replace_img()
+                batch.delete_tempfiles()
+                final_docs = pd.concat([final_docs, documents])
+            tmp_files = batch.temp_files
+            final_tmp_f = pd.concat([final_tmp_f, tmp_files])
+
+        self.temp_files = final_tmp_f
+        self.docs = final_docs
+
+    def safe_download(self, sm_type="num", sm_val=10000, **kwargs):
+        """Run the data pipeline to download index and fillings data.
+
+        Args:
+            sm_type (str, optional): Defines the safe_mode to be used.
+                Possible values:
+                * "None": The full sample will be downloaded
+                * "num" : Split sample based on the number of samples.
+                * "years": Split sample based on sample years.
+                * "months": Split sample based on sample months.
+                Defaults to "num".
+            sm_val (int, optional): Value for the safe mode.
+                If safe_mode is "num": Number of samples per subsample.
+                If safe_mode is "years": Number of years per subsample.
+                If safe_mode is "months": Number of months per subsample.
+                Defaults to 10000.
+        Keyword arguments:
+            raw (bool): If true, the original .txt files from the EDGAR server
+                will be stored. If false, the containing documents will be
+                extracted and stored. Defaults to False.
+            text_only (bool): If True, only html and txt files are saved.
+                All other (media) files are discarded. Defaults to True.
+            chunk_size (int): Number of filings to process in only iteration.
+                The bigger the chunk, the bigger the temporary file cache.
+                Defaults to 100.
+            fname_form (str): String with the filename format.
+                Possible parameters:
+                * %org - orignal filename on server
+                * %company - Company Name
+                * All date variables based on strftime.
+                  See: http://strftime.org/
+                Defaults to "%Y%m%d_%company_".
+        Returns:
+            None
+
+        Raises:
+            None
+
+        """
+        fulldf = self.cur_index
+
+        if sm_type == "num":
+            # Split sample into subsamples based on sample size
+            for x in range(0, fulldf.shape[0], sm_val):
+                limit = min(fulldf.shape[0], x + sm_val)
+                tempdf = fulldf.iloc[x:limit, :]
+                tqdm.write("Download sample %s-%s from total sample(size: %s)"
+                           % (x, limit, fulldf.shape[0]))
+                self.downloadfilings(index=tempdf, **kwargs)
+                self.docs.to_csv("filings_"
+                                 + str(x)
+                                 + "_"
+                                 + str(limit)
+                                 + ".csv")
+        elif sm_type == "years":
+            # Split sample into subsamples based on years in sample period
+            year_s = self.sample_start.year
+            year_e = self.sample_end.year
+            for period in range(year_s, year_e + 1, sm_val):
+                end_year = min(year_e, period + sm_val - 1)
+                tempdf = fulldf.loc[((fulldf.date >= str(period)) &
+                                     (fulldf.date <= str(end_year + 1)))]
+                tqdm.write("Download sample %s-%s from total sample %s-%s"
+                           % (period, end_year, year_s, year_e))
+                self.downloadfilings(index=tempdf, **kwargs)
+                self.docs.to_csv("filings_"
+                                 + str(period)
+                                 + "_"
+                                 + str(end_year)
+                                 + ".csv")
+        elif sm_type == "months":
+            # Split sample into subsamples based on months in sample period
+            starty = self.sample_start.year
+            startm = self.sample_start.month
+            endy = self.sample_end.year
+            endm = self.sample_end.month
+            startdate = str(starty) + str(startm).zfill(2)
+            enddate = str(endy) + str(endy).zfill(2)
+            for year in range(starty, endy + 1):
+                if year != starty:
+                    start = 1
+                else:
+                    start = startm
+
+                if year != endy:
+                    end = 13
+                else:
+                    end = endm + 1
+                for month in range(start, end, sm_val):
+                    limit = min(end, month + sm_val)
+                    start = str(year) + "-" + str(month).zfill(2)
+                    if limit < 13:
+                        stop = str(year) + "-" + str(limit).zfill(2)
+                    else:
+                        stop = str(year + 1) + "-" + str(limit - 12).zfill(2)
+
+                    limit_d = min(end, month + sm_val) - 1
+                    if limit_d < 13:
+                        stop_d = str(year) + "-" + str(limit_d).zfill(2)
+                    else:
+                        stop_d = (str(year + 1)
+                                  + "-"
+                                  + str(limit_d - 12).zfill(2)
+                                  )
+                    print("%s - %s" % (start, stop_d))
+
+                    tempdf = fulldf.loc[((fulldf.date >= str(start)) &
+                                         (fulldf.date < str(stop)))]
+                    tqdm.write(("Download filings in months %s - %s from "
+                               "total sample period %s-%s")
+                               % (start, stop_d, startdate, enddate))
+                    self.downloadfilings(index=tempdf, **kwargs)
+                    self.docs.to_csv("filings_"
+                                     + str(start)
+                                     + "_"
+                                     + str(stop_d)
+                                     + ".csv")
