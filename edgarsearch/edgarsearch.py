@@ -102,7 +102,7 @@ class Search(object):
             self.cur_index = filt_index
 
     def download_filings(self, index=None, raw=False, text_only=True,
-                         chunk_size=100, **kwargs):
+                         chunk_size=100, disable_progressbar=False, **kwargs):
         """Process download requests in chunks.
 
         The method will execute the following steps:
@@ -167,13 +167,12 @@ class Search(object):
         print("Progress:")
 
         # Iterate over chunks, while showing a progess bar
-        for index_chunk in tqdm(c_list):
-
+        for index_chunk in tqdm(c_list, disable=disable_progressbar):
             # Download the files from the server
             batch = fb.Batch(index_chunk, dir_work=self.dir_work,
                              sub_filings=self.sub_filings,
                              edgar_url=self.edgar_url, **kwargs)
-            batch.download()
+            batch.download(disable_progressbar)
 
             # If raw is False, process the downloaded filins
             if raw is False:

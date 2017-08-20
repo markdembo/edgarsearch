@@ -89,7 +89,7 @@ class Batch(object):
         else:
             self.errors.append(result)
 
-    def download(self):
+    def download(self, disable_progressbar=False):
         """Download all filings from a list of urls.
 
         Returns:
@@ -107,7 +107,9 @@ class Batch(object):
         urls_queue = self.url_list
         # Init the second (lower) progress bar
         if self.show_progress:
-            self.bar = tqdm(total=len(self.url_list))
+            self.bar = tqdm(total=len(self.url_list),
+                            disable=disable_progressbar,
+                            )
 
         # If not all filins are downloaded yet and the attempts are below
         # three then try to download
