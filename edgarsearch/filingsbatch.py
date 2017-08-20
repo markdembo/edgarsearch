@@ -51,7 +51,8 @@ class Batch(object):
     def __init__(self, index_slice, show_progess=True,
                  dir_work="edgar/", sub_filings="filings/",
                  edgar_url="https://www.sec.gov/Archives/",
-                 timeout_limit=30, attempts_max=3, **kwargs):
+                 timeout_limit=30, sleep_between_attempts=5,
+                 attempts_max=3, **kwargs):
         """Class construnctor."""
         self.index_slice = index_slice
         self.show_progress = show_progess
@@ -60,6 +61,7 @@ class Batch(object):
         self.edgar_url = edgar_url
         self.timeout_limit = timeout_limit
         self.attempts_max = attempts_max
+        self.sleep_between_attempts = sleep_between_attempts
 
         # List of str from filings index slice
         self.url_list = index_slice["File Name"].tolist()
@@ -136,7 +138,7 @@ class Batch(object):
                 urls_queue = [item[0] for item in self.errors]
                 self.errors = []
                 attempt += 1
-                time.sleep(5)
+                time.sleep(self.sleep_between_attempts)
         # Handling unsuccesful attempts
         if (len(self.results) < len(self.url_list) and
                 attempt >= self.attempts_max):
