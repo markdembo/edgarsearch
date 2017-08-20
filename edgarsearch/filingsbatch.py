@@ -40,18 +40,26 @@ class Batch(object):
         sub_filings (str): Subdirectory for filings data.
             Defaults to "sub_filings".
         edgar_url (str): URL to EDGAR server
+        timeout (int): Number of seconds to wait for the download to complete
+            before the download attempt is counted as failed.
+            Defaults to 30 seconds.
+        attempts (int): Number of tries to download files
+            Defaults to 3.
 
     """
 
     def __init__(self, index_slice, show_progess=True,
                  dir_work="edgar/", sub_filings="filings/",
-                 edgar_url="https://www.sec.gov/Archives/"):
+                 edgar_url="https://www.sec.gov/Archives/",
+                 timeout_limit=30, attempts_max=3, **kwargs):
         """Class construnctor."""
         self.index_slice = index_slice
         self.show_progress = show_progess
         self.dir_work = dir_work
         self.sub_filings = sub_filings
         self.edgar_url = edgar_url
+        self.timeout_limit = timeout_limit
+        self.attempts_max = attempts_max
 
         # List of str from filings index slice
         self.url_list = index_slice["File Name"].tolist()
@@ -72,7 +80,6 @@ class Batch(object):
             None
 
         """
-        global pbar2
         if result[2] != "Error":
             self.results.append(result)
             if self.show_progress:
@@ -86,7 +93,7 @@ class Batch(object):
         Returns:
             None
 
-        Raises:
+        Raises:s
             None
 
         """
@@ -102,12 +109,14 @@ class Batch(object):
 
         # If not all filins are downloaded yet and the attempts are below
         # three then try to download
-        while len(self.results) < len(self.url_list) and attempt < 2:
+        while (len(self.results) < len(self.url_list) and
+               attempt < self.attempts_max - 1):
             # Use multiprocessing pool to download files
             mplist = list(itertools.product(urls_queue,
                                             [self.edgar_url],
                                             [self.dir_work],
-                                            [self.sub_filings]))
+                                            [self.sub_filings],
+                                            ))
             pool = mp.Pool()
             for x in mplist:
                 pool.apply_async(mpw.singledownload, x, callback=self.collect)
@@ -129,10 +138,12 @@ class Batch(object):
                 attempt += 1
                 time.sleep(5)
         # Handling unsuccesful attempts
-        if len(self.results) < len(self.url_list) and attempt >= 2:
-            tqdm.write("The final attempt was unsuccesful."
-                       " %s out %s files could not be downloaded."
-                       % (len(self.errors), len(self.url_list)))
+        if (len(self.results) < len(self.url_list) and
+                attempt >= self.attempts_max):
+            tqdm.write("The final attempt was unsuccesful. "
+                       "%s out %s files could not be downloaded."
+                       % ((len(self.url_list) - len(self.result)),
+                          len(self.url_list)))
         # Output if an error occured, but it could be fixed
         elif attempt > 0:
             tqdm.write("Attempt %s: Success. %s out %s files were downloaded."
@@ -142,7 +153,8 @@ class Batch(object):
             self.temp_files = pd.DataFrame(self.results,
                                            columns=["url",
                                                     "temp_fname",
-                                                    "dt_accessed"])
+                                                    "dt_accessed",
+                                                    ])
             self.temp_files = self.temp_files.merge(self.index_slice,
                                                     left_on="url",
                                                     right_on="File Name")
@@ -180,7 +192,7 @@ class Batch(object):
         # Iterate over all documents to split files
         for index, row in self.temp_files.iterrows():
             # Get get filename and make sure path exists
-            tmp_fname = self.dir_work + self.sub_filings + row["temp_fname"]
+            temp_fname = self.dir_work + self.sub_filings + row["temp_fname"]
             fname_part = create_filename(row, **kwargs)
             fname_full = self.dir_work + self.sub_filings + str(fname_part)
             fname_full = t.finduniquefname(fname_full, exact=False, **kwargs)
@@ -189,9 +201,8 @@ class Batch(object):
                 os.makedirs(path)
 
             # Open the temporary file and read the content
-            f = open(tmp_fname)
-            txt = f.read()
-            f.close()
+            with open(temp_fname) as f:
+                txt = f.read()
 
             # Extract the filing metadata, write to file & append to DataFrame
             m_sec_header = re.search("<SEC-HEADER>.*</SEC-HEADER>",
@@ -199,9 +210,9 @@ class Batch(object):
                                      re.DOTALL)
             b_sec_header = m_sec_header.group(0)
             local_fname = fname_full + "header.txt"
-            out = open(local_fname, "w")
-            out.write(b_sec_header)
-            out.close()
+            with open(local_fname, "w") as out:
+                out.write(b_sec_header)
+
             result.loc[result.shape[0]] = ([row["url"],
                                             0,
                                             "HEADER",
@@ -210,32 +221,28 @@ class Batch(object):
                                             local_fname])
 
             # Extract all other document parts
-            starts = ([a.end() for a in list(re.finditer("<DOCUMENT>", txt))])
-            ends = ([a.start() for a in list(re.finditer("</DOCUMENT>", txt))])
-
+            splits = txt.split("<DOCUMENT>")[1:]
             # For each documents path: Extract information, save to file and
             # append to dataframe; depending on text_only only save text or all
             # information
-            for i in range(len(starts)):
-                content = txt[starts[i]:ends[i]]
-                text_startpos = content.find("<TEXT>\n") + 7
-                text_endpos = content.find("</TEXT") - 1
-                text = content[text_startpos:text_endpos]
+            for i in splits:
+                text_startpos = i.find("<TEXT>\n") + 7
+                text_endpos = i.find("</TEXT") - 1
+                text = i[text_startpos:text_endpos]
 
                 search = ("<TYPE>(?P<TYPE>.+?)[\\n]+?"
                           "<SEQUENCE>(?P<SEQ>.+?)[\\n]+"
                           "<FILENAME>(?P<FNAME>.+?)[\\n]"
                           "(<DESCRIPTION>(?P<DESC>.+?)[\\n])?")
                 try:
-                    info = re.search(search, content, re.MULTILINE).groupdict()
+                    info = re.search(search, i, re.MULTILINE).groupdict()
                 except:
-                    print(content)
+                    print(i)
                     break
                 if info["TYPE"] != "GRAPHIC":
                     local_fname = fname_full + str(info["SEQ"]) + ".html"
-                    out = open(local_fname, "w")
-                    out.write(text)
-                    out.close()
+                    with open(local_fname, "w") as out:
+                        out.write(text)
                 else:
                     if text_only is True:
                         break
@@ -271,16 +278,14 @@ class Batch(object):
             extract_other = extract_full.loc[extract_full.type != "GRAPHIC"]
             if extract_graphic.shape[0] > 0:
                 for index, row in extract_other.iterrows():
-                    f = open(row["local_fname"], "r")
-                    txt = f.read()
+                    with open(row["local_fname"], "r") as f:
+                        txt = f.read()
                     local = extract_graphic.local_fname.values
                     server = extract_graphic.server_fname.values
                     for i in range(len(local)):
                         txt = txt.replace(server[i], local[i].split("/")[-1])
-                    f.close()
-                    f = open(row["local_fname"], "w")
-                    f.write(txt)
-                    f.close
+                    with open(row["local_fname"], "w") as f:
+                        f.write(txt)
 
     def delete_tempfiles(self):
         """Delete temporary raw downloaded files.
