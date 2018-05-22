@@ -48,14 +48,14 @@ class Batch(object):
 
     """
 
-    def __init__(self, index_slice, show_progess=True,
+    def __init__(self, index_slice, show_progress=True,
                  dir_work="edgar/", sub_filings="filings/",
                  edgar_url="https://www.sec.gov/Archives/",
                  timeout_limit=30, sleep_between_attempts=5,
                  attempts_max=3, **kwargs):
         """Class construnctor."""
         self.index_slice = index_slice
-        self.show_progress = show_progess
+        self.show_progress = show_progress
         self.dir_work = dir_work
         self.sub_filings = sub_filings
         self.edgar_url = edgar_url
@@ -89,7 +89,7 @@ class Batch(object):
         else:
             self.errors.append(result)
 
-    def download(self, disable_progressbar=False):
+    def download(self, ):
         """Download all filings from a list of urls.
 
         Returns:
@@ -107,9 +107,7 @@ class Batch(object):
         urls_queue = self.url_list
         # Init the second (lower) progress bar
         if self.show_progress:
-            self.bar = tqdm(total=len(self.url_list),
-                            disable=disable_progressbar,
-                            )
+            self.bar = tqdm(total=len(self.url_list))
 
         # If not all filins are downloaded yet and the attempts are below
         # three then try to download

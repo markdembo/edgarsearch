@@ -102,7 +102,7 @@ class Search(object):
             self.cur_index = filt_index
 
     def download_filings(self, index=None, raw=False, text_only=True,
-                         chunk_size=100, disable_progressbar=False, **kwargs):
+                         chunk_size=100, show_progress=True, **kwargs):
         """Process download requests in chunks.
 
         The method will execute the following steps:
@@ -161,18 +161,21 @@ class Search(object):
         final_docs = pd.DataFrame()
 
         # Print information to user
-        print("Total filings to download: %s" % length)
-        print("Number of batches: %s (containing %s filings each)"
-              % (len(c_list), chunk_size))
-        print("Progress:")
+        if show_progress:
+            print("Total filings to download: %s" % length)
+            print("Number of batches: %s (containing %s filings each)"
+                  % (len(c_list), chunk_size))
+            print("Progress:")
 
         # Iterate over chunks, while showing a progess bar
-        for index_chunk in tqdm(c_list, disable=disable_progressbar):
+        for index_chunk in tqdm(c_list, disable=(not show_progress)):
             # Download the files from the server
             batch = fb.Batch(index_chunk, dir_work=self.dir_work,
                              sub_filings=self.sub_filings,
-                             edgar_url=self.edgar_url, **kwargs)
-            batch.download(disable_progressbar)
+                             edgar_url=self.edgar_url,
+                             show_progress=show_progress,
+                             **kwargs)
+            batch.download()
 
             # If raw is False, process the downloaded filins
             if raw is False:
@@ -249,6 +252,7 @@ class Search(object):
             year_s = self.sample_start.year
             year_e = self.sample_end.year
             for period in range(year_s, year_e + 1, safemode_val):
+
                 end_year = min(year_e, period + safemode_val - 1)
                 tempdf = fulldf.loc[((fulldf.date >= str(period)) &
                                      (fulldf.date <= str(end_year + 1)))]
