@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name="edgarsearch",
-      version="0.2",
+      version="0.3",
       description="Crawl EDGAR database to download index files and filings.",
       keywords="EDGAR index filings 8-K 10-K",
       url="https://github.com/markdembo/edgarsearch",
