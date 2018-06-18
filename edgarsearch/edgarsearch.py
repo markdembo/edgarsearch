@@ -1,20 +1,28 @@
 """Crawl EDGAR database to download index files and filings.
 
 Example:
-    import edgarsearch.edgarsearch
-    search = edgarsearch.edgarsearch.Search("20151001",
-                                            "20161231",
-                                            sample_size=200,
-                                            filter_formtype=["8-K"])
-    search.download_index()
-    search.safe_download("months", 1, text_only=True,
-                         fname_form="%Y/%m/%Y%m_%company",
-                         chunk_size=100)
+    import edgarsearch.edgarsearch as es
+    if __name__ == '__main__':
+        # Define a search by passing the start and end of the sample period, the sample size
+        # as well as the desired formtype (and using defaults for the other values)
+        search = es.Search("20151001",
+                        "20161231",
+                        sample_size=200,
+                        filter_formtype=["8-K"])
+
+
+        # Get the index file based on the defined search
+        search.download_index()
+
+        # Download the filings
+        search.download_filings("months", 1, text_only=True,
+                                chunk_size=100)
 
 Todo:
     *  Add proper exception handling
     *  Add rollback functions if an error occurs
     *  Add testing
+    *  Add silent option
 
 """
 import datetime
@@ -61,8 +69,9 @@ class Search(object):
         try:
             sample_start = datetime.datetime.strptime(sample_start, "%Y%m%d")
             sample_end = datetime.datetime.strptime(sample_end, "%Y%m%d")
-        except ValueError:
+        except ValueError as e:
             print("Dates must be in YYYYMMDD format.")
+            raise ValueError(e)
 
         if sample_start > sample_end:
             raise ValueError("Sample start must be prior to sample end")
@@ -101,8 +110,8 @@ class Search(object):
         else:
             self.cur_index = filt_index
 
-    def download_filings(self, index=None, raw=False, text_only=True,
-                         chunk_size=100, show_progress=True, **kwargs):
+    def download_filings_sub(self, index=None, raw=False, text_only=True,
+                             chunk_size=100, show_progress=True, **kwargs):
         """Process download requests in chunks.
 
         The method will execute the following steps:
@@ -190,7 +199,8 @@ class Search(object):
         self.temp_files = final_tmp_f
         self.docs = final_docs
 
-    def safe_download(self, safemode_type="num", safemode_val=10000, **kwargs):
+    def download_filings(self, safemode_type="num",
+                         safemode_val=10000, **kwargs):
         """Run the data pipeline to download index and fillings data.
 
         Args:
@@ -237,7 +247,7 @@ class Search(object):
                 tempdf = fulldf.iloc[x:limit, :]
                 tqdm.write("Download sample %s-%s from total sample(size: %s)"
                            % (x, limit, fulldf.shape[0]))
-                self.download_filings(index=tempdf, **kwargs)
+                self.download_filings_sub(index=tempdf, **kwargs)
                 fname = (
                     "filings_"
                     + str(x)
@@ -258,7 +268,7 @@ class Search(object):
                                      (fulldf.date <= str(end_year + 1)))]
                 tqdm.write("Download sample %s-%s from total sample %s-%s"
                            % (period, end_year, year_s, year_e))
-                self.download_filings(index=tempdf, **kwargs)
+                self.download_filings_sub(index=tempdf, **kwargs)
                 self.docs.to_csv("filings_"
                                  + str(period)
                                  + "_"
@@ -316,7 +326,7 @@ class Search(object):
                     tqdm.write(("Download filings of period %s - %s from "
                                "total sample period %s - %s")
                                % (start, stop_d, startdate, enddate))
-                    self.download_filings(index=tempdf, **kwargs)
+                    self.download_filings_sub(index=tempdf, **kwargs)
                     if start == stop_d:
                         fname = "filings_" + str(start) + ".csv"
                     else:

@@ -55,7 +55,7 @@ def singledownload(url, edgar_url="https://www.sec.gov/Archives/",
 
     try:
         f = open(folder + sub + fname, 'x')
-    except:
+    except Exception:
         f = open(folder + sub + fname, 'w+')
     f.write(txt.decode('utf-8'))
     f.close
