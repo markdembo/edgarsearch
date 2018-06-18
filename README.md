@@ -48,7 +48,6 @@ if __name__ == '__main__':
                        sample_size=200,
                        filter_formtype=["8-K"])
 
-
     # Get the index file based on the defined search
     search.download_index()
 
